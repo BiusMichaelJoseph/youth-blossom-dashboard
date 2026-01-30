@@ -31,7 +31,7 @@ export interface Program {
   id: string;
   name: string;
   description: string;
-  category: 'worship' | 'discipleship' | 'outreach' | 'fellowship' | 'leadership';
+  category: 'worship' | 'discipleship' | 'outreach' | 'fellowship' | 'leadership' | 'sabbath_school';
   startDate: string;
   endDate?: string;
   isActive: boolean;
@@ -39,8 +39,14 @@ export interface Program {
   maxCapacity?: number;
   leader: string;
   schedule: string;
+  scheduleType: 'sabbath' | 'weekday' | 'special';
   averageAttendance: number;
   engagementScore: number;
+  memberBreakdown: {
+    students: number;
+    employed: number;
+    unemployed: number;
+  };
 }
 
 export interface AttendanceRecord {
@@ -346,22 +352,40 @@ export const mockYouths: Youth[] = [
 export const mockPrograms: Program[] = [
   {
     id: '1',
-    name: 'Sunday Youth Service',
-    description: 'Weekly worship gathering for all youth ages 13-30',
+    name: 'Sabbath Divine Service',
+    description: 'Weekly Sabbath worship gathering for all AY members ages 13-30',
     category: 'worship',
     startDate: '2020-01-01',
     isActive: true,
     participantCount: 45,
     maxCapacity: 60,
     leader: 'Pastor Michael',
-    schedule: 'Sundays at 10:00 AM',
+    schedule: 'Sabbath at 11:00 AM',
+    scheduleType: 'sabbath',
     averageAttendance: 38,
     engagementScore: 85,
+    memberBreakdown: { students: 22, employed: 18, unemployed: 5 },
   },
   {
     id: '2',
+    name: 'AY Sabbath School',
+    description: 'Interactive Bible study using the Sabbath School quarterly',
+    category: 'sabbath_school',
+    startDate: '2020-01-01',
+    isActive: true,
+    participantCount: 42,
+    maxCapacity: 50,
+    leader: 'Elder Thompson',
+    schedule: 'Sabbath at 9:30 AM',
+    scheduleType: 'sabbath',
+    averageAttendance: 35,
+    engagementScore: 82,
+    memberBreakdown: { students: 20, employed: 17, unemployed: 5 },
+  },
+  {
+    id: '3',
     name: 'Youth Bible Study',
-    description: 'Mid-week deep dive into Scripture',
+    description: 'Mid-week deep dive into Scripture and Spirit of Prophecy',
     category: 'discipleship',
     startDate: '2020-03-15',
     isActive: true,
@@ -369,54 +393,77 @@ export const mockPrograms: Program[] = [
     maxCapacity: 35,
     leader: 'Deacon James',
     schedule: 'Wednesdays at 7:00 PM',
+    scheduleType: 'weekday',
     averageAttendance: 22,
     engagementScore: 78,
+    memberBreakdown: { students: 15, employed: 10, unemployed: 3 },
   },
   {
-    id: '3',
-    name: 'Community Outreach',
-    description: 'Monthly service projects in the local community',
+    id: '4',
+    name: 'Community Service Day',
+    description: 'Monthly community service projects after Sabbath',
     category: 'outreach',
     startDate: '2021-06-01',
     isActive: true,
     participantCount: 20,
     leader: 'Sister Grace',
-    schedule: 'First Saturday of each month',
+    schedule: 'First Sunday of each month',
+    scheduleType: 'weekday',
     averageAttendance: 15,
     engagementScore: 72,
+    memberBreakdown: { students: 8, employed: 9, unemployed: 3 },
   },
   {
-    id: '4',
-    name: 'Youth Fellowship Night',
-    description: 'Fun activities and games to build community',
+    id: '5',
+    name: 'AY Program (Sundown Worship)',
+    description: 'Adventist Youth hour with music, testimonies, and spiritual activities',
     category: 'fellowship',
     startDate: '2019-09-01',
     isActive: true,
     participantCount: 35,
     maxCapacity: 50,
     leader: 'Marcus Williams',
-    schedule: 'Fridays at 6:30 PM',
+    schedule: 'Sabbath Afternoon (After Sundown)',
+    scheduleType: 'sabbath',
     averageAttendance: 30,
     engagementScore: 90,
+    memberBreakdown: { students: 18, employed: 12, unemployed: 5 },
   },
   {
-    id: '5',
-    name: 'Leadership Academy',
-    description: 'Training program for emerging youth leaders',
+    id: '6',
+    name: 'Master Guide Training',
+    description: 'Leadership training program for emerging Pathfinder and AY leaders',
     category: 'leadership',
     startDate: '2022-01-15',
     isActive: true,
     participantCount: 12,
     maxCapacity: 15,
     leader: 'Pastor Michael',
-    schedule: 'Saturdays at 9:00 AM (Monthly)',
+    schedule: 'Sundays at 2:00 PM (Bi-weekly)',
+    scheduleType: 'weekday',
     averageAttendance: 10,
     engagementScore: 95,
+    memberBreakdown: { students: 4, employed: 7, unemployed: 1 },
   },
   {
-    id: '6',
-    name: 'Summer Camp 2025',
-    description: 'Annual youth retreat with worship, teaching, and activities',
+    id: '7',
+    name: 'Prayer & Fasting Fellowship',
+    description: 'Weekly prayer meeting focusing on spiritual growth and intercession',
+    category: 'discipleship',
+    startDate: '2023-01-01',
+    isActive: true,
+    participantCount: 18,
+    leader: 'Deaconess Martha',
+    schedule: 'Fridays at 6:00 PM (Before Sabbath)',
+    scheduleType: 'weekday',
+    averageAttendance: 14,
+    engagementScore: 88,
+    memberBreakdown: { students: 7, employed: 8, unemployed: 3 },
+  },
+  {
+    id: '8',
+    name: 'Youth Camp Meeting 2025',
+    description: 'Annual youth retreat with worship, seminars, and fellowship activities',
     category: 'fellowship',
     startDate: '2025-07-15',
     endDate: '2025-07-20',
@@ -425,8 +472,10 @@ export const mockPrograms: Program[] = [
     maxCapacity: 50,
     leader: 'Youth Ministry Team',
     schedule: 'July 15-20, 2025',
+    scheduleType: 'special',
     averageAttendance: 40,
     engagementScore: 92,
+    memberBreakdown: { students: 20, employed: 15, unemployed: 5 },
   },
 ];
 
