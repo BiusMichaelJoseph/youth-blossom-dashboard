@@ -19,25 +19,29 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mockYouths, Youth } from "@/data/mockData";
+import { mockYouths as initialYouths, Youth } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { YouthProfileSheet } from "@/components/directory/YouthProfileSheet";
+import { AddYouthDialog } from "@/components/directory/AddYouthDialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 
 const YouthDirectory = () => {
+  const [youths, setYouths] = useState<Youth[]>(initialYouths);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
   const [engagementFilter, setEngagementFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [selectedYouth, setSelectedYouth] = useState<Youth | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const filteredYouths = useMemo(() => {
-    return mockYouths.filter((youth) => {
+    return youths.filter((youth) => {
       const matchesSearch =
         youth.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         youth.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -48,7 +52,41 @@ const YouthDirectory = () => {
         engagementFilter === "all" || youth.engagementStatus === engagementFilter;
       return matchesSearch && matchesStatus && matchesAge && matchesEngagement;
     });
-  }, [searchQuery, statusFilter, ageFilter, engagementFilter]);
+  }, [youths, searchQuery, statusFilter, ageFilter, engagementFilter]);
+
+  const handleAddYouth = (newYouth: Partial<Youth>) => {
+    setYouths((prev) => [...prev, newYouth as Youth]);
+  };
+
+  const handleExport = () => {
+    const csvContent = [
+      ["Name", "Email", "Phone", "Age Group", "Status", "Education", "Occupation", "Engagement"].join(","),
+      ...youths.map((y) =>
+        [
+          `${y.firstName} ${y.lastName}`,
+          y.email,
+          y.phone,
+          y.ageGroup,
+          y.status,
+          y.educationStatus,
+          y.occupation || "N/A",
+          y.engagementStatus,
+        ].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "youth_directory.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast({
+      title: "Export Complete",
+      description: `Exported ${youths.length} youth records to CSV.`,
+    });
+  };
 
   const getEngagementBadge = (status: string) => {
     const styles = {
@@ -70,11 +108,11 @@ const YouthDirectory = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Youth
           </Button>
@@ -149,7 +187,7 @@ const YouthDirectory = () => {
 
       {/* Results Count */}
       <p className="text-sm text-muted-foreground">
-        Showing {filteredYouths.length} of {mockYouths.length} youth members
+        Showing {filteredYouths.length} of {youths.length} youth members
       </p>
 
       {/* Table View */}
@@ -319,6 +357,13 @@ const YouthDirectory = () => {
         youth={selectedYouth}
         open={!!selectedYouth}
         onOpenChange={(open) => !open && setSelectedYouth(null)}
+      />
+
+      {/* Add Youth Dialog */}
+      <AddYouthDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSave={handleAddYouth}
       />
     </div>
   );
