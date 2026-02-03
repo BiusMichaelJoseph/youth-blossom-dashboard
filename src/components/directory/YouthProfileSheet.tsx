@@ -23,6 +23,8 @@ import {
   MessageSquare,
   AlertTriangle,
   Clock,
+  Trash2,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -31,9 +33,19 @@ interface YouthProfileSheetProps {
   youth: Youth | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (youth: Youth) => void;
+  onDelete?: (youth: Youth) => void;
+  onRecordAttendance?: (youth: Youth) => void;
 }
 
-export function YouthProfileSheet({ youth, open, onOpenChange }: YouthProfileSheetProps) {
+export function YouthProfileSheet({ 
+  youth, 
+  open, 
+  onOpenChange,
+  onEdit,
+  onDelete,
+  onRecordAttendance
+}: YouthProfileSheetProps) {
   if (!youth) return null;
 
   const getEngagementColor = (status: string) => {
@@ -116,14 +128,39 @@ export function YouthProfileSheet({ youth, open, onOpenChange }: YouthProfileShe
 
         <div className="mt-6 space-y-6">
           {/* Quick Actions */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="w-full"
+              onClick={() => onRecordAttendance?.(youth)}
+            >
+              <ClipboardCheck className="h-4 w-4 mr-2" />
+              Record Attendance
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full"
+              onClick={() => onEdit?.(youth)}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Profile
+            </Button>
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1">
               <MessageSquare className="h-4 w-4 mr-2" />
               Message
             </Button>
-            <Button variant="outline" size="sm" className="flex-1">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Profile
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => onDelete?.(youth)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
             </Button>
           </div>
 
