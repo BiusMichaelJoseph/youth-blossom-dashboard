@@ -23,6 +23,8 @@ import { mockYouths as initialYouths, Youth } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { YouthProfileSheet } from "@/components/directory/YouthProfileSheet";
 import { AddYouthDialog } from "@/components/directory/AddYouthDialog";
+import { RecordAttendanceDialog } from "@/components/directory/RecordAttendanceDialog";
+import { DeleteYouthDialog } from "@/components/directory/DeleteYouthDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +41,9 @@ const YouthDirectory = () => {
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [selectedYouth, setSelectedYouth] = useState<Youth | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingYouth, setEditingYouth] = useState<Youth | null>(null);
+  const [attendanceYouth, setAttendanceYouth] = useState<Youth | null>(null);
+  const [deleteYouth, setDeleteYouth] = useState<Youth | null>(null);
 
   const filteredYouths = useMemo(() => {
     return youths.filter((youth) => {
@@ -55,7 +60,80 @@ const YouthDirectory = () => {
   }, [youths, searchQuery, statusFilter, ageFilter, engagementFilter]);
 
   const handleAddYouth = (newYouth: Partial<Youth>) => {
-    setYouths((prev) => [...prev, newYouth as Youth]);
+    if (editingYouth) {
+      // Update existing youth
+      setYouths((prev) => prev.map((y) => 
+        y.id === editingYouth.id ? { ...y, ...newYouth } as Youth : y
+      ));
+      setEditingYouth(null);
+    } else {
+      // Add new youth
+      setYouths((prev) => [...prev, newYouth as Youth]);
+    }
+  };
+
+  const handleEditYouth = (youth: Youth) => {
+    setSelectedYouth(null);
+    setEditingYouth(youth);
+    setIsAddDialogOpen(true);
+  };
+
+  const handleDeleteYouth = (youth: Youth) => {
+    setSelectedYouth(null);
+    setDeleteYouth(youth);
+  };
+
+  const handleConfirmDelete = (youth: Youth) => {
+    setYouths((prev) => prev.filter((y) => y.id !== youth.id));
+    setDeleteYouth(null);
+    toast({
+      title: "Youth Deleted",
+      description: `${youth.firstName} ${youth.lastName} has been removed from the directory.`,
+    });
+  };
+
+  const handleRecordAttendance = (youth: Youth) => {
+    setSelectedYouth(null);
+    setAttendanceYouth(youth);
+  };
+
+  const handleAttendanceRecorded = (youth: Youth, record: any) => {
+    // Update youth's attendance data
+    setYouths((prev) => prev.map((y) => {
+      if (y.id === youth.id) {
+        const isPresent = record.attendanceStatus === "present" || record.attendanceStatus === "late";
+        const newAttendanceRate = isPresent 
+          ? Math.min(100, y.attendanceRate + 2) 
+          : Math.max(0, y.attendanceRate - 3);
+        
+        // Update engagement score based on attendance and engagement level
+        let engagementDelta = 0;
+        if (isPresent) {
+          engagementDelta = record.engagementLevel === "very_high" ? 5 
+            : record.engagementLevel === "high" ? 3 
+            : record.engagementLevel === "medium" ? 1 
+            : 0;
+        } else {
+          engagementDelta = -5;
+        }
+        
+        const newEngagementScore = Math.min(100, Math.max(0, y.engagementScore + engagementDelta));
+        const newEngagementStatus = newEngagementScore >= 70 ? "engaged" 
+          : newEngagementScore >= 40 ? "at-risk" 
+          : "disengaged";
+
+        return {
+          ...y,
+          attendanceRate: newAttendanceRate,
+          engagementScore: newEngagementScore,
+          engagementStatus: newEngagementStatus,
+          lastAttendance: isPresent ? record.date : y.lastAttendance,
+          notes: record.followUpNotes ? `${y.notes ? y.notes + " | " : ""}${record.followUpNotes}` : y.notes,
+        };
+      }
+      return y;
+    }));
+    setAttendanceYouth(null);
   };
 
   const handleExport = () => {
@@ -357,13 +435,38 @@ const YouthDirectory = () => {
         youth={selectedYouth}
         open={!!selectedYouth}
         onOpenChange={(open) => !open && setSelectedYouth(null)}
+        onEdit={handleEditYouth}
+        onDelete={handleDeleteYouth}
+        onRecordAttendance={handleRecordAttendance}
       />
 
-      {/* Add Youth Dialog */}
+      {/* Add/Edit Youth Dialog */}
       <AddYouthDialog
         open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) setEditingYouth(null);
+        }}
         onSave={handleAddYouth}
+        editingYouth={editingYouth}
+      />
+
+      {/* Record Attendance Dialog */}
+      {attendanceYouth && (
+        <RecordAttendanceDialog
+          open={!!attendanceYouth}
+          onOpenChange={(open) => !open && setAttendanceYouth(null)}
+          youth={attendanceYouth}
+          onRecordAttendance={handleAttendanceRecorded}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteYouthDialog
+        open={!!deleteYouth}
+        onOpenChange={(open) => !open && setDeleteYouth(null)}
+        youth={deleteYouth}
+        onConfirmDelete={handleConfirmDelete}
       />
     </div>
   );
