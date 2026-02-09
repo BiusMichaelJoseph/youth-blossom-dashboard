@@ -31,9 +31,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { AttendanceRecord, STORAGE_KEYS } from "@/data/attendanceRecords";
 
 const YouthDirectory = () => {
-  const [youths, setYouths] = useState<Youth[]>(initialYouths);
+  const [youths, setYouths] = useLocalStorage<Youth[]>(STORAGE_KEYS.YOUTHS, initialYouths);
+  const [attendanceRecords, setAttendanceRecords] = useLocalStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE_RECORDS, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
@@ -98,6 +101,25 @@ const YouthDirectory = () => {
   };
 
   const handleAttendanceRecorded = (youth: Youth, record: any) => {
+    // Create a new attendance record
+    const newRecord: AttendanceRecord = {
+      id: crypto.randomUUID(),
+      youthId: youth.id,
+      youthName: `${youth.firstName} ${youth.lastName}`,
+      programId: record.programId,
+      programName: record.programName || 'Unknown Program',
+      date: record.date,
+      attendanceStatus: record.attendanceStatus,
+      engagementLevel: record.engagementLevel,
+      participatedInActivity: record.participatedInActivity,
+      activityNotes: record.activityNotes,
+      followUpNotes: record.followUpNotes,
+      recordedAt: new Date().toISOString(),
+    };
+
+    // Save attendance record
+    setAttendanceRecords((prev) => [...prev, newRecord]);
+
     // Update youth's attendance data
     setYouths((prev) => prev.map((y) => {
       if (y.id === youth.id) {
@@ -133,6 +155,12 @@ const YouthDirectory = () => {
       }
       return y;
     }));
+
+    toast({
+      title: "Attendance Recorded",
+      description: `Attendance for ${youth.firstName} ${youth.lastName} saved successfully.`,
+    });
+    
     setAttendanceYouth(null);
   };
 
