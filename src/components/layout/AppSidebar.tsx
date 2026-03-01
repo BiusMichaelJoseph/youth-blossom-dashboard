@@ -11,7 +11,6 @@ import {
   ChevronRight,
   FileText,
   Shield,
-  Heart,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
@@ -93,13 +92,11 @@ export function AppSidebar() {
         "flex items-center h-16 px-4 border-b border-sidebar-border",
         collapsed ? "justify-center" : "gap-3"
       )}>
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-          <Heart className="h-5 w-5 text-primary-foreground" />
-        </div>
+        <img src="/canopy-logo.svg" alt="Canopy logo" className="w-9 h-9 rounded-lg object-cover" />
         {!collapsed && (
           <div className="flex flex-col">
-            <span className="font-display font-semibold text-sidebar-foreground">Youth Ministry</span>
-            <span className="text-xs text-muted-foreground">Dashboard</span>
+            <span className="font-display font-semibold text-sidebar-foreground">Canopy</span>
+            <span className="text-xs text-muted-foreground">Ministry Dashboard</span>
           </div>
         )}
       </div>

@@ -71,3 +71,35 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Backend API (Express + TypeScript)
+
+A backend scaffold is available under `backend/` and mirrors the frontend's youth/program/attendance models.
+
+### Run backend locally
+
+```bash
+npm run api:dev
+```
+
+Server starts at `http://localhost:4000`.
+
+### Auth
+
+`POST /api/auth/login`
+
+Demo credentials:
+- `admin@youthblossom.org` / `admin123`
+- `leader@youthblossom.org` / `leader123`
+- `volunteer@youthblossom.org` / `vol123`
+
+Use `Authorization: Bearer <token>` for protected routes.
+
+### Main endpoints
+
+- `GET/POST/PUT/DELETE /api/youths`
+- `GET /api/programs`
+- `GET/POST /api/attendance`
+- `GET /api/dashboard/metrics`
+
+Attendance writes automatically recalculate youth attendance rate + engagement score/status.

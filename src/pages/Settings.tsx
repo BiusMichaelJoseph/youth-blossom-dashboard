@@ -62,7 +62,7 @@ const Settings = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Ministry Name</Label>
-                  <Input defaultValue="Youth Ministry" />
+                  <Input defaultValue="Canopy" />
                 </div>
                 <div className="space-y-2">
                   <Label>Contact Email</Label>
