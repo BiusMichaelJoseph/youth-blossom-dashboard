@@ -7,12 +7,9 @@ import {
   Settings,
   FileText,
   Shield,
-  Heart,
-  X,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -51,10 +48,8 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
       <SheetContent side="left" className="w-72 p-0">
         <SheetHeader className="flex flex-row items-center h-16 px-4 border-b border-border">
           <div className="flex items-center gap-3 flex-1">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-              <Heart className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <SheetTitle className="font-display font-semibold">Youth Ministry</SheetTitle>
+            <img src="/canopy-logo.svg" alt="Canopy logo" className="w-9 h-9 rounded-lg object-cover" />
+            <SheetTitle className="font-display font-semibold">Canopy</SheetTitle>
           </div>
         </SheetHeader>
 
