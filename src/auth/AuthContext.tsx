@@ -25,6 +25,7 @@ export interface ChurchMembership {
   churchId: string;
   churchName: string;
   churchSlug?: string | null;
+  churchJoinCode?: string | null;
   role: ChurchRole;
 }
 
@@ -50,6 +51,7 @@ interface ChurchRow {
   id: string;
   name: string;
   slug?: string | null;
+  join_code?: string | null;
 }
 
 interface MembershipRow {
@@ -82,6 +84,7 @@ function toMembership(row: MembershipRow): ChurchMembership {
     churchId: row.church_id,
     churchName: church?.name ?? "Church",
     churchSlug: church?.slug,
+    churchJoinCode: church?.join_code,
     role: row.role,
   };
 }
@@ -117,7 +120,7 @@ function getPendingSignupIntent(): SignupIntent | null {
 
 async function fetchMemberships(): Promise<ChurchMembership[]> {
   const rows = await supabaseRequest<MembershipRow[]>(
-    "church_memberships?select=id,church_id,role,status,churches(id,name,slug)&status=eq.active&order=created_at.asc"
+    "church_memberships?select=id,church_id,role,status,churches(id,name,slug,join_code)&status=eq.active&order=created_at.asc"
   );
   return rows.map(toMembership);
 }
