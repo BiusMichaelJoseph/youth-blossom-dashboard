@@ -28,6 +28,10 @@ interface AuthContextValue {
   activeMembership: ChurchMembership | null;
   isLoadingAccess: boolean;
   accessError: string | null;
+  canEditRecords: boolean;
+  canManageChurch: boolean;
+  canRecordAttendance: boolean;
+  canExportRecords: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
   switchChurch: (churchId: string) => void;
@@ -151,6 +155,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.access_token]);
 
   const activeMembership = memberships.find((membership) => membership.churchId === activeChurchId) ?? memberships[0] ?? null;
+  const activeRole = activeMembership?.role;
+  const canManageChurch = activeRole === "owner" || activeRole === "admin";
+  const canEditRecords = canManageChurch || activeRole === "leader";
+  const canRecordAttendance = canEditRecords || activeRole === "volunteer";
+  const canExportRecords = canEditRecords;
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -161,6 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       activeMembership,
       isLoadingAccess,
       accessError,
+      canEditRecords,
+      canManageChurch,
+      canRecordAttendance,
+      canExportRecords,
       async signIn(email, password) {
         const nextSession = await signInWithPassword(email, password);
         setSession(nextSession);
@@ -180,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.reload();
       },
     }),
-    [session, memberships, activeMembership, isLoadingAccess, accessError]
+    [session, memberships, activeMembership, isLoadingAccess, accessError, canEditRecords, canManageChurch, canRecordAttendance, canExportRecords]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
