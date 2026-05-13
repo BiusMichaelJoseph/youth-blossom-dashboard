@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileNav } from "./MobileNav";
-import { Menu, Bell, Search } from "lucide-react";
+import { Bell, Building2, Check, ChevronDown, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,27 +19,26 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
+function formatRole(role: string) {
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { session, signOut } = useAuth();
+  const { session, signOut, memberships, activeMembership, switchChurch } = useAuth();
   const userEmail = session?.user?.email ?? "Dashboard user";
   const userInitials = userEmail.slice(0, 2).toUpperCase();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
-      {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <AppSidebar />
       </div>
 
-      {/* Mobile Navigation */}
       <MobileNav open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
-        {/* Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-card px-4 lg:px-6">
-          {/* Mobile Menu Button */}
           <Button
             variant="ghost"
             size="icon"
@@ -50,7 +49,6 @@ export function AppLayout({ children }: AppLayoutProps) {
             <span className="sr-only">Toggle menu</span>
           </Button>
 
-          {/* Search */}
           <div className="hidden sm:flex flex-1 max-w-md">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -63,9 +61,37 @@ export function AppLayout({ children }: AppLayoutProps) {
 
           <div className="flex-1 sm:hidden" />
 
-          {/* Right side actions */}
           <div className="flex items-center gap-2">
-            {/* Notifications */}
+            {activeMembership && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="hidden md:flex items-center gap-2 max-w-[280px]">
+                    <Building2 className="h-4 w-4" />
+                    <span className="truncate">{activeMembership.churchName}</span>
+                    <span className="text-xs text-muted-foreground">{formatRole(activeMembership.role)}</span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuLabel>Your churches</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {memberships.map((membership) => (
+                    <DropdownMenuItem
+                      key={membership.id}
+                      className="flex items-center justify-between gap-3"
+                      onClick={() => switchChurch(membership.churchId)}
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{membership.churchName}</div>
+                        <div className="text-xs text-muted-foreground">{formatRole(membership.role)}</div>
+                      </div>
+                      {membership.churchId === activeMembership.churchId && <Check className="h-4 w-4 text-primary" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -92,7 +118,6 @@ export function AppLayout({ children }: AppLayoutProps) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
@@ -103,10 +128,15 @@ export function AppLayout({ children }: AppLayoutProps) {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col gap-1">
                     <span>Ivula Canopy</span>
+                    {activeMembership && (
+                      <span className="text-xs font-normal text-muted-foreground truncate">
+                        {activeMembership.churchName} · {formatRole(activeMembership.role)}
+                      </span>
+                    )}
                     <span className="text-xs font-normal text-muted-foreground truncate">
                       {userEmail}
                     </span>
@@ -124,10 +154,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">
-          {children}
-        </main>
+        <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>
       </div>
     </div>
   );
