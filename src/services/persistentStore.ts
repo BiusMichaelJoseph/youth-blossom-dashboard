@@ -1,10 +1,11 @@
 import type { Youth } from "@/data/mockData";
 import type { AttendanceRecord } from "@/data/attendanceRecords";
 import { STORAGE_KEYS } from "@/data/attendanceRecords";
-import { isSupabaseConfigured, supabaseRequest } from "@/lib/supabaseRest";
+import { getActiveChurchId, isSupabaseConfigured, supabaseRequest } from "@/lib/supabaseRest";
 
 interface YouthRow {
   id: string;
+  church_id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -31,6 +32,7 @@ interface YouthRow {
 
 interface AttendanceRow {
   id: string;
+  church_id: string;
   youth_id: string;
   youth_name: string;
   program_id: string;
@@ -42,6 +44,14 @@ interface AttendanceRow {
   activity_notes?: string | null;
   follow_up_notes?: string | null;
   recorded_at: string;
+}
+
+function requireActiveChurchId() {
+  const churchId = getActiveChurchId();
+  if (!churchId) {
+    throw new Error("No active church selected for this account.");
+  }
+  return churchId;
 }
 
 function toYouth(row: YouthRow): Youth {
@@ -75,6 +85,7 @@ function toYouth(row: YouthRow): Youth {
 function fromYouth(youth: Youth): YouthRow {
   return {
     id: youth.id,
+    church_id: requireActiveChurchId(),
     first_name: youth.firstName,
     last_name: youth.lastName,
     email: youth.email,
@@ -120,6 +131,7 @@ function toAttendance(row: AttendanceRow): AttendanceRecord {
 function fromAttendance(record: AttendanceRecord): AttendanceRow {
   return {
     id: record.id,
+    church_id: requireActiveChurchId(),
     youth_id: record.youthId,
     youth_name: record.youthName,
     program_id: record.programId,
@@ -135,16 +147,22 @@ function fromAttendance(record: AttendanceRecord): AttendanceRow {
 }
 
 async function replaceDeletedRows(table: string, nextIds: string[]) {
-  const existing = await supabaseRequest<Array<{ id: string }>>(`${table}?select=id`);
+  const churchId = requireActiveChurchId();
+  const existing = await supabaseRequest<Array<{ id: string }>>(
+    `${table}?select=id&church_id=eq.${encodeURIComponent(churchId)}`
+  );
   const removed = existing.map((row) => row.id).filter((id) => !nextIds.includes(id));
 
   await Promise.all(
-    removed.map((id) => supabaseRequest(`${table}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE" }))
+    removed.map((id) => supabaseRequest(`${table}?id=eq.${encodeURIComponent(id)}&church_id=eq.${encodeURIComponent(churchId)}`, { method: "DELETE" }))
   );
 }
 
 async function loadYouths(fallback: Youth[]): Promise<Youth[]> {
-  const rows = await supabaseRequest<YouthRow[]>("youths?select=*&order=created_at.desc");
+  const churchId = requireActiveChurchId();
+  const rows = await supabaseRequest<YouthRow[]>(
+    `youths?select=*&church_id=eq.${encodeURIComponent(churchId)}&order=created_at.desc`
+  );
   if (rows.length > 0) return rows.map(toYouth);
 
   if (fallback.length > 0) {
@@ -170,7 +188,10 @@ async function syncYouths(youths: Youth[]) {
 }
 
 async function loadAttendance(fallback: AttendanceRecord[]): Promise<AttendanceRecord[]> {
-  const rows = await supabaseRequest<AttendanceRow[]>("attendance_records?select=*&order=recorded_at.desc");
+  const churchId = requireActiveChurchId();
+  const rows = await supabaseRequest<AttendanceRow[]>(
+    `attendance_records?select=*&church_id=eq.${encodeURIComponent(churchId)}&order=recorded_at.desc`
+  );
   if (rows.length > 0) return rows.map(toAttendance);
 
   if (fallback.length > 0) {
@@ -196,7 +217,7 @@ async function syncAttendance(records: AttendanceRecord[]) {
 }
 
 export async function loadPersistentValue<T>(key: string, fallback: T): Promise<T> {
-  if (!isSupabaseConfigured) return fallback;
+  if (!isSupabaseConfigured || !getActiveChurchId()) return fallback;
 
   if (key === STORAGE_KEYS.YOUTHS) {
     return (await loadYouths(fallback as Youth[])) as T;
@@ -210,7 +231,7 @@ export async function loadPersistentValue<T>(key: string, fallback: T): Promise<
 }
 
 export async function syncPersistentValue<T>(key: string, value: T) {
-  if (!isSupabaseConfigured) return;
+  if (!isSupabaseConfigured || !getActiveChurchId()) return;
 
   if (key === STORAGE_KEYS.YOUTHS) {
     await syncYouths(value as Youth[]);
