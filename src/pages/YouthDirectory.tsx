@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Search, Filter, Plus, Grid, List, AlertTriangle, Download } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, Plus, Grid, List, AlertTriangle, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +33,16 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { AttendanceRecord, STORAGE_KEYS } from "@/data/attendanceRecords";
+import { useAuth } from "@/auth/AuthContext";
 
 const YouthDirectory = () => {
+  const {
+    activeMembership,
+    canEditRecords,
+    canManageChurch,
+    canRecordAttendance,
+    canExportRecords,
+  } = useAuth();
   const [youths, setYouths] = useLocalStorage<Youth[]>(STORAGE_KEYS.YOUTHS, initialYouths);
   const [attendanceRecords, setAttendanceRecords] = useLocalStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE_RECORDS, []);
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,31 +70,59 @@ const YouthDirectory = () => {
     });
   }, [youths, searchQuery, statusFilter, ageFilter, engagementFilter]);
 
+  const roleLabel = activeMembership?.role ?? "viewer";
+
+  const showPermissionError = (action: string) => {
+    toast({
+      title: "Permission needed",
+      description: `${action} is not available for the ${roleLabel} role in this church.`,
+      variant: "destructive",
+    });
+  };
+
   const handleAddYouth = (newYouth: Partial<Youth>) => {
+    if (!canEditRecords) {
+      showPermissionError("Adding or editing youth records");
+      return;
+    }
+
     if (editingYouth) {
-      // Update existing youth
-      setYouths((prev) => prev.map((y) => 
+      setYouths((prev) => prev.map((y) =>
         y.id === editingYouth.id ? { ...y, ...newYouth } as Youth : y
       ));
       setEditingYouth(null);
     } else {
-      // Add new youth
       setYouths((prev) => [...prev, newYouth as Youth]);
     }
   };
 
   const handleEditYouth = (youth: Youth) => {
+    if (!canEditRecords) {
+      showPermissionError("Editing youth profiles");
+      return;
+    }
+
     setSelectedYouth(null);
     setEditingYouth(youth);
     setIsAddDialogOpen(true);
   };
 
   const handleDeleteYouth = (youth: Youth) => {
+    if (!canManageChurch) {
+      showPermissionError("Deleting youth records");
+      return;
+    }
+
     setSelectedYouth(null);
     setDeleteYouth(youth);
   };
 
   const handleConfirmDelete = (youth: Youth) => {
+    if (!canManageChurch) {
+      showPermissionError("Deleting youth records");
+      return;
+    }
+
     setYouths((prev) => prev.filter((y) => y.id !== youth.id));
     setDeleteYouth(null);
     toast({
@@ -96,18 +132,27 @@ const YouthDirectory = () => {
   };
 
   const handleRecordAttendance = (youth: Youth) => {
+    if (!canRecordAttendance) {
+      showPermissionError("Recording attendance");
+      return;
+    }
+
     setSelectedYouth(null);
     setAttendanceYouth(youth);
   };
 
   const handleAttendanceRecorded = (youth: Youth, record: any) => {
-    // Create a new attendance record
+    if (!canRecordAttendance) {
+      showPermissionError("Recording attendance");
+      return;
+    }
+
     const newRecord: AttendanceRecord = {
       id: crypto.randomUUID(),
       youthId: youth.id,
       youthName: `${youth.firstName} ${youth.lastName}`,
       programId: record.programId,
-      programName: record.programName || 'Unknown Program',
+      programName: record.programName || "Unknown Program",
       date: record.date,
       attendanceStatus: record.attendanceStatus,
       engagementLevel: record.engagementLevel,
@@ -117,31 +162,28 @@ const YouthDirectory = () => {
       recordedAt: new Date().toISOString(),
     };
 
-    // Save attendance record
     setAttendanceRecords((prev) => [...prev, newRecord]);
 
-    // Update youth's attendance data
     setYouths((prev) => prev.map((y) => {
       if (y.id === youth.id) {
         const isPresent = record.attendanceStatus === "present" || record.attendanceStatus === "late";
-        const newAttendanceRate = isPresent 
-          ? Math.min(100, y.attendanceRate + 2) 
+        const newAttendanceRate = isPresent
+          ? Math.min(100, y.attendanceRate + 2)
           : Math.max(0, y.attendanceRate - 3);
-        
-        // Update engagement score based on attendance and engagement level
+
         let engagementDelta = 0;
         if (isPresent) {
-          engagementDelta = record.engagementLevel === "very_high" ? 5 
-            : record.engagementLevel === "high" ? 3 
-            : record.engagementLevel === "medium" ? 1 
+          engagementDelta = record.engagementLevel === "very_high" ? 5
+            : record.engagementLevel === "high" ? 3
+            : record.engagementLevel === "medium" ? 1
             : 0;
         } else {
           engagementDelta = -5;
         }
-        
+
         const newEngagementScore = Math.min(100, Math.max(0, y.engagementScore + engagementDelta));
-        const newEngagementStatus = newEngagementScore >= 70 ? "engaged" 
-          : newEngagementScore >= 40 ? "at-risk" 
+        const newEngagementStatus = newEngagementScore >= 70 ? "engaged"
+          : newEngagementScore >= 40 ? "at-risk"
           : "disengaged";
 
         return {
@@ -160,11 +202,16 @@ const YouthDirectory = () => {
       title: "Attendance Recorded",
       description: `Attendance for ${youth.firstName} ${youth.lastName} saved successfully.`,
     });
-    
+
     setAttendanceYouth(null);
   };
 
   const handleExport = () => {
+    if (!canExportRecords) {
+      showPermissionError("Exporting youth records");
+      return;
+    }
+
     const csvContent = [
       ["Name", "Email", "Phone", "Age Group", "Status", "Education", "Occupation", "Engagement"].join(","),
       ...youths.map((y) =>
@@ -205,27 +252,27 @@ const YouthDirectory = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="page-header mb-0">
           <h1 className="page-title">Youth Directory</h1>
           <p className="page-description">
-            Manage and view all registered youth members
+            {activeMembership
+              ? `Manage ${activeMembership.churchName} youth members by role-based access.`
+              : "Manage and view all registered youth members"}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={!canExportRecords}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
+          <Button size="sm" onClick={() => setIsAddDialogOpen(true)} disabled={!canEditRecords}>
             <Plus className="h-4 w-4 mr-2" />
             Add Youth
           </Button>
         </div>
       </div>
 
-      {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -291,12 +338,10 @@ const YouthDirectory = () => {
         </div>
       </div>
 
-      {/* Results Count */}
       <p className="text-sm text-muted-foreground">
         Showing {filteredYouths.length} of {youths.length} youth members
       </p>
 
-      {/* Table View */}
       {viewMode === "table" && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <Table>
@@ -402,7 +447,6 @@ const YouthDirectory = () => {
         </div>
       )}
 
-      {/* Grid View */}
       {viewMode === "grid" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredYouths.map((youth) => (
@@ -458,7 +502,6 @@ const YouthDirectory = () => {
         </div>
       )}
 
-      {/* Profile Sheet */}
       <YouthProfileSheet
         youth={selectedYouth}
         open={!!selectedYouth}
@@ -466,20 +509,31 @@ const YouthDirectory = () => {
         onEdit={handleEditYouth}
         onDelete={handleDeleteYouth}
         onRecordAttendance={handleRecordAttendance}
+        canEdit={canEditRecords}
+        canDelete={canManageChurch}
+        canRecordAttendance={canRecordAttendance}
       />
 
-      {/* Add/Edit Youth Dialog */}
       <AddYouthDialog
         open={isAddDialogOpen}
         onOpenChange={(open) => {
-          setIsAddDialogOpen(open);
-          if (!open) setEditingYouth(null);
+          if (!open) {
+            setIsAddDialogOpen(false);
+            setEditingYouth(null);
+            return;
+          }
+
+          if (!canEditRecords) {
+            showPermissionError("Adding or editing youth records");
+            return;
+          }
+
+          setIsAddDialogOpen(true);
         }}
         onSave={handleAddYouth}
         editingYouth={editingYouth}
       />
 
-      {/* Record Attendance Dialog */}
       {attendanceYouth && (
         <RecordAttendanceDialog
           open={!!attendanceYouth}
@@ -489,7 +543,6 @@ const YouthDirectory = () => {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
       <DeleteYouthDialog
         open={!!deleteYouth}
         onOpenChange={(open) => !open && setDeleteYouth(null)}
