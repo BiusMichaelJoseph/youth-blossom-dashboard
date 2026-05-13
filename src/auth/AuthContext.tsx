@@ -51,6 +51,14 @@ interface MembershipRow {
   churches?: ChurchRow | ChurchRow[] | null;
 }
 
+interface CreatedChurchMembershipRow {
+  membership_id: string;
+  church_id: string;
+  church_name: string;
+  church_slug?: string | null;
+  role: ChurchRole;
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getJoinedChurch(row: MembershipRow): ChurchRow | null {
@@ -69,6 +77,16 @@ function toMembership(row: MembershipRow): ChurchMembership {
   };
 }
 
+function toCreatedMembership(row: CreatedChurchMembershipRow): ChurchMembership {
+  return {
+    id: row.membership_id,
+    churchId: row.church_id,
+    churchName: row.church_name,
+    churchSlug: row.church_slug,
+    role: row.role,
+  };
+}
+
 async function fetchMemberships(): Promise<ChurchMembership[]> {
   const rows = await supabaseRequest<MembershipRow[]>(
     "church_memberships?select=id,church_id,role,status,churches(id,name,slug)&status=eq.active&order=created_at.asc"
@@ -80,33 +98,12 @@ async function createFirstChurchForUser(session: SupabaseSession): Promise<Churc
   if (!session.user?.id) return [];
 
   const churchName = session.user.email ? `${session.user.email.split("@")[0]}'s Church` : "My Church";
-  const churches = await supabaseRequest<ChurchRow[]>("churches", {
+  const rows = await supabaseRequest<CreatedChurchMembershipRow[]>("rpc/create_church_for_current_user", {
     method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ name: churchName }),
-  });
-  const church = churches[0];
-  if (!church) return [];
-
-  await supabaseRequest("church_memberships", {
-    method: "POST",
-    body: JSON.stringify({
-      church_id: church.id,
-      user_id: session.user.id,
-      role: "owner",
-      status: "active",
-    }),
+    body: JSON.stringify({ requested_church_name: churchName }),
   });
 
-  return [
-    {
-      id: `${church.id}:${session.user.id}`,
-      churchId: church.id,
-      churchName: church.name,
-      churchSlug: church.slug,
-      role: "owner",
-    },
-  ];
+  return rows.map(toCreatedMembership);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
