@@ -4,13 +4,21 @@ import {
   getStoredSession,
   isSupabaseConfigured,
   signInWithPassword,
+  signUpWithPassword,
   storeActiveChurchId,
   storeSession,
   supabaseRequest,
   type SupabaseSession,
 } from "@/lib/supabaseRest";
 
+const PENDING_SIGNUP_INTENT_KEY = "ivula_canopy_pending_signup_intent";
+
 export type ChurchRole = "owner" | "admin" | "leader" | "volunteer" | "viewer";
+export type JoinableChurchRole = "leader" | "volunteer" | "viewer";
+
+export type SignupIntent =
+  | { type: "register_church"; churchName: string }
+  | { type: "join_church"; joinCode: string; role: JoinableChurchRole };
 
 export interface ChurchMembership {
   id: string;
@@ -33,6 +41,7 @@ interface AuthContextValue {
   canRecordAttendance: boolean;
   canExportRecords: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, intent: SignupIntent) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => void;
   switchChurch: (churchId: string) => void;
 }
@@ -87,6 +96,25 @@ function toCreatedMembership(row: CreatedChurchMembershipRow): ChurchMembership 
   };
 }
 
+function storePendingSignupIntent(intent: SignupIntent | null) {
+  if (!intent) {
+    window.localStorage.removeItem(PENDING_SIGNUP_INTENT_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(PENDING_SIGNUP_INTENT_KEY, JSON.stringify(intent));
+}
+
+function getPendingSignupIntent(): SignupIntent | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_SIGNUP_INTENT_KEY);
+    return raw ? (JSON.parse(raw) as SignupIntent) : null;
+  } catch (error) {
+    console.error("Unable to read pending signup intent", error);
+    return null;
+  }
+}
+
 async function fetchMemberships(): Promise<ChurchMembership[]> {
   const rows = await supabaseRequest<MembershipRow[]>(
     "church_memberships?select=id,church_id,role,status,churches(id,name,slug)&status=eq.active&order=created_at.asc"
@@ -94,16 +122,33 @@ async function fetchMemberships(): Promise<ChurchMembership[]> {
   return rows.map(toMembership);
 }
 
-async function createFirstChurchForUser(session: SupabaseSession): Promise<ChurchMembership[]> {
+async function createFirstChurchForUser(session: SupabaseSession, churchNameOverride?: string): Promise<ChurchMembership[]> {
   if (!session.user?.id) return [];
 
-  const churchName = session.user.email ? `${session.user.email.split("@")[0]}'s Church` : "My Church";
+  const churchName = churchNameOverride || (session.user.email ? `${session.user.email.split("@")[0]}'s Church` : "My Church");
   const rows = await supabaseRequest<CreatedChurchMembershipRow[]>("rpc/create_church_for_current_user", {
     method: "POST",
     body: JSON.stringify({ requested_church_name: churchName }),
   });
 
   return rows.map(toCreatedMembership);
+}
+
+async function joinChurchForUser(intent: Extract<SignupIntent, { type: "join_church" }>): Promise<ChurchMembership[]> {
+  const rows = await supabaseRequest<CreatedChurchMembershipRow[]>("rpc/join_church_for_current_user", {
+    method: "POST",
+    body: JSON.stringify({ requested_join_code: intent.joinCode, requested_role: intent.role }),
+  });
+
+  return rows.map(toCreatedMembership);
+}
+
+async function applySignupIntent(session: SupabaseSession, intent: SignupIntent): Promise<ChurchMembership[]> {
+  if (intent.type === "register_church") {
+    return createFirstChurchForUser(session, intent.churchName);
+  }
+
+  return joinChurchForUser(intent);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -128,6 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       let nextMemberships = await fetchMemberships();
+      const pendingIntent = getPendingSignupIntent();
+
+      if (nextMemberships.length === 0 && pendingIntent) {
+        nextMemberships = await applySignupIntent(nextSession, pendingIntent);
+        storePendingSignupIntent(null);
+      }
+
       if (nextMemberships.length === 0) {
         nextMemberships = await createFirstChurchForUser(nextSession);
       }
@@ -176,8 +228,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(nextSession);
         await loadAccess(nextSession);
       },
+      async signUp(email, password, intent) {
+        storePendingSignupIntent(intent);
+        const nextSession = await signUpWithPassword(email, password);
+
+        if (!nextSession) {
+          return { needsEmailConfirmation: true };
+        }
+
+        setSession(nextSession);
+        await loadAccess(nextSession);
+        return { needsEmailConfirmation: false };
+      },
       signOut() {
         storeSession(null);
+        storePendingSignupIntent(null);
         setSession(null);
         setMemberships([]);
         setActiveChurchId(null);
